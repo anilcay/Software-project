@@ -1,0 +1,5 @@
+com/quizgame/model/User.class
+com/quizgame/repository/UserRepository.class
+com/quizgame/service/UserService.class
+com/quizgame/controller/UserController.class
+com/quizgame/QuizgameApplication.class
