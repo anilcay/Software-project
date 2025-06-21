@@ -1,0 +1,15 @@
+# Java derleme çıktıları
+*.class
+*.jar
+
+# Maven / Gradle
+/target/
+/build/
+
+# IDE ayarları
+/.idea/
+*.iml
+
+# Log ve geçici dosyalar
+*.log
+*.tmp
