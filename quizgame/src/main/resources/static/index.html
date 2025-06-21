@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz Game • Kullanıcı İşlemleri</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background:#f4f4f4; }
+    .container { background:#fff; padding:20px; border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,.1); max-width:500px; margin:auto; }
+    input[type="text"], input[type="email"], input[type="password"] {
+      width:calc(100% - 22px); padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:4px;
+    }
+    button { background:#007bff; color:#fff; padding:10px 15px; border:none; border-radius:4px; cursor:pointer; }
+    button:hover { background:#0056b3; }
+    .message { margin-top:15px; padding:10px; border-radius:4px; }
+    .success { background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
+    .error   { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
+    h2 { border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Quiz Game API Test</h1>
+
+    <!-- =========== KAYIT OL =========== -->
+    <h2>Kayıt Ol</h2>
+    <form id="registerForm">
+      <input type="text"     id="regUsername"         placeholder="Kullanıcı Adı"  required>
+      <input type="email"    id="regEmail"            placeholder="Email"          required>
+      <input type="password" id="regPassword"         placeholder="Şifre"          required>
+      <input type="password" id="regConfirmPassword"  placeholder="Şifre Tekrarı" required>
+      <button type="submit">Kayıt Ol</button>
+      <div id="registerMessage" class="message"></div>
+    </form>
+
+    <hr>
+
+    <!-- =========== E-MAIL DOĞRULA =========== -->
+    <h2>Email Doğrula</h2>
+    <form id="verifyForm">
+      <input type="email" id="verifyEmail" placeholder="Email" required>
+      <input type="text"  id="verifyCode"  placeholder="Doğrulama Kodu" required>
+      <button type="submit">Email Doğrula</button>
+      <div id="verifyMessage" class="message"></div>
+    </form>
+
+    <hr>
+
+    <!-- =========== GİRİŞ YAP =========== -->
+    <h2>Giriş Yap</h2>
+    <form id="loginForm">
+      <input type="email"    name="email"    id="loginEmail"    placeholder="Email"  required>
+      <input type="password" name="password" id="loginPassword" placeholder="Şifre" required>
+      <button type="submit">Giriş Yap</button>
+      <div id="loginMessage" class="message"></div>
+    </form>
+
+    <hr>
+
+    <!-- =========== ŞİFRE DEĞİŞTİR =========== -->
+    <h2>Şifre Değiştir</h2>
+    <form id="changePasswordForm">
+      <input type="email"    id="changePassEmail"    placeholder="Email (hesabınızın)" required>
+      <input type="password" id="oldPassword"        placeholder="Mevcut Şifre"       required>
+      <input type="password" id="newPassword"        placeholder="Yeni Şifre"         required>
+      <input type="password" id="confirmNewPassword" placeholder="Yeni Şifre Tekrarı" required>
+      <button type="submit">Şifre Değiştir</button>
+      <div id="changePassMessage" class="message"></div>
+    </form>
+  </div>
+
+  <script>
+    const API_BASE_URL = '/api/auth';
+
+    const showMessage = (id, msg, type) => {
+      const el = document.getElementById(id);
+      el.innerText = msg;
+      el.className = `message ${type}`;
+    };
+
+    /* --- KAYIT OL --- */
+    document.getElementById('registerForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const body = {
+        username        : document.getElementById('regUsername').value,
+        email           : document.getElementById('regEmail').value,
+        password        : document.getElementById('regPassword').value,
+        confirmPassword : document.getElementById('regConfirmPassword').value
+      };
+      try {
+        const r = await fetch(`${API_BASE_URL}/register`, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          credentials: 'include',
+          body: JSON.stringify(body)
+        });
+        showMessage('registerMessage', await r.text(), r.ok ? 'success':'error');
+      } catch (err) {
+        showMessage('registerMessage', err.message, 'error');
+      }
+    });
+
+    /* --- EMAIL DOĞRULA --- */
+    document.getElementById('verifyForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      try {
+        const email = encodeURIComponent(document.getElementById('verifyEmail').value);
+        const code  = encodeURIComponent(document.getElementById('verifyCode').value);
+        const r = await fetch(`${API_BASE_URL}/verify?email=${email}&code=${code}`, {
+          credentials: 'include'
+        });
+        showMessage('verifyMessage', await r.text(), r.ok ? 'success':'error');
+      } catch (err) {
+        showMessage('verifyMessage', err.message, 'error');
+      }
+    });
+
+    /* --- GİRİŞ YAP (fetch) --- */
+    document.getElementById('loginForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      try {
+        const r = await fetch('/login', {
+          method: 'POST',
+          body: formData,
+          credentials: 'include'
+        });
+        if (r.status === 200) {
+          window.location.replace('/game.html');
+        } else if (r.status === 403) {
+          showMessage('loginMessage', 'Email doğrulanmamış', 'error');
+        } else {
+          showMessage('loginMessage', 'Email veya şifre hatalı', 'error');
+        }
+      } catch (err) {
+        showMessage('loginMessage', err.message, 'error');
+      }
+    });
+
+    /* --- ŞİFRE DEĞİŞTİR --- */
+    document.getElementById('changePasswordForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const body = {
+        oldPassword       : document.getElementById('oldPassword').value,
+        newPassword       : document.getElementById('newPassword').value,
+        confirmNewPassword: document.getElementById('confirmNewPassword').value
+      };
+      try {
+        const email = encodeURIComponent(document.getElementById('changePassEmail').value);
+        const r = await fetch(`${API_BASE_URL}/change-password?email=${email}`, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          credentials: 'include',
+          body: JSON.stringify(body)
+        });
+        showMessage('changePassMessage', await r.text(), r.ok ? 'success':'error');
+      } catch (err) {
+        showMessage('changePassMessage', err.message, 'error');
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quiz Game</title>
+  <style>
+    body { font-family: Arial,sans-serif; background:#f5f7fa; margin:0; padding:2rem; }
+    #wrap { max-width:640px; margin:auto; background:#fff; padding:2rem; border-radius:8px;
+            box-shadow:0 2px 8px rgba(0,0,0,.12); }
+    h1 { margin-top:0; }
+    .btn { display:inline-block; margin:0.5rem 0.5rem 1rem 0; padding:.75rem 1.5rem; font-size:1rem;
+           border:none; border-radius:6px; background:#007bff; color:#fff; cursor:pointer; transition:.2s; }
+    .btn:hover { background:#0056b3; }
+    #quizContainer { display:none; }
+    #question { font-size:1.25rem; margin-bottom:1rem; }
+    .option-btn { display:block; width:100%; text-align:left; margin:.5rem 0; padding:.75rem 1rem;
+                  font-size:1rem; border:1px solid #ccc; border-radius:6px; background:#fafafa;
+                  cursor:pointer; transition:.15s background; }
+    .option-btn:hover { background:#e8f0fe; }
+    #score { text-align:right; font-weight:bold; margin-top:1rem; }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <h1>Yarışma Ekranı</h1>
+
+    <button id="startBtn" class="btn">Oyuna Başla</button>
+    <button id="leaderBtn" class="btn">Leaderboard</button>
+    <button id="homeBtn"   class="btn">Ana Sayfaya Dön</button>
+
+    <div id="quizContainer">
+      <div id="question">Soru yükleniyor…</div>
+      <div id="options"></div>
+      <div id="score">Skor: 0</div>
+    </div>
+  </div>
+
+  <script>
+    const API_AUTH = '/api/auth/check';
+    const API_GAME = '/api/game';
+
+    let currentQuestion, timer, timeLeft, score;
+
+    // Leaderboard
+    document.getElementById('leaderBtn').onclick = () =>
+      window.location.href = '/leaderboard.html';
+
+    // Ana Sayfa
+    document.getElementById('homeBtn').onclick = () =>
+      window.location.href = '/index.html';
+
+    // Oyuna Başla / Tekrar Oyna
+    document.getElementById('startBtn').onclick = async () => {
+      const ck = await fetch(API_AUTH, { credentials: 'include' });
+      if (!ck.ok) {
+        // login sayfasına dönüş
+        return window.location.href = '/index.html';
+      }
+      // UI güncelle
+      document.getElementById('startBtn').style.display   = 'none';
+      document.getElementById('leaderBtn').style.display  = 'none';
+      document.getElementById('homeBtn').style.display    = 'none';
+      document.getElementById('quizContainer').style.display = 'block';
+      score = 0;
+      startGame();
+    };
+
+    function startGame(){
+      fetch(`${API_GAME}/start`, { credentials:'include' })
+        .then(r => r.json())
+        .then(q => showQuestion(q));
+    }
+
+    function showQuestion(q){
+      clearInterval(timer);
+      if (!q) {
+        // Oyun bitti → sonuç ekranı
+        document.getElementById('question').textContent =
+          `Bu turdaki puanınız: ${score}`;
+        document.getElementById('options').innerHTML =
+          `<button class="btn" id="retryBtn">Tekrar Oyna</button>
+           <button class="btn" onclick="window.location.href='/index.html'">Ana Sayfaya Dön</button>
+           <button class="btn" onclick="window.location.href='/game.html'">Oyun Ekranına Dön</button>`;
+        // Skoru altında da güncelle
+        document.getElementById('score').textContent = `Yeni En Yüksek Puanınız: ${score}`;
+        // Tekrar Oyna butonuna direkt yeni oyun başlat
+        document.getElementById('retryBtn').onclick = () => {
+          score = 0;
+          startGame();
+        };
+        return;
+      }
+
+      // Yeni soru UI’a yerleştir
+      currentQuestion = q;
+      timeLeft = 10;
+      document.getElementById('question').textContent = q.text;
+      const opts = ['A','B','C','D'].map(k => q['option'+k]);
+      const container = document.getElementById('options');
+      container.innerHTML = '';
+      opts.forEach((txt,i) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.textContent = `${String.fromCharCode(65+i)}. ${txt}`;
+        btn.onclick = () => submitAnswer(String.fromCharCode(65+i));
+        container.appendChild(btn);
+      });
+      document.getElementById('score').textContent = `Skor: ${score}`;
+      startCountdown();
+    }
+
+    function startCountdown(){
+      clearInterval(timer);
+      timer = setInterval(()=>{
+        if (--timeLeft <= 0) {
+          clearInterval(timer);
+          submitAnswer('');
+        } else {
+          document.getElementById('question').innerHTML =
+            `${currentQuestion.text}<br><small>${timeLeft} sn</small>`;
+        }
+      }, 1000);
+    }
+
+    function submitAnswer(opt){
+      clearInterval(timer);
+      fetch(`${API_GAME}/answer`, {
+        method:'POST',
+        credentials:'include',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ questionId: currentQuestion.id, option: opt })
+      })
+      .then(r => r.json())
+      .then(data => {
+        score = data.score;                // her cevap sonrası güncel skor
+        showQuestion(data.nextQuestion);   // ya sonraki soruya ya da bitiş ekranına
+      });
+    }
+  </script>
+</body>
+</html>
+
